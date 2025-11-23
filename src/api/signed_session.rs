@@ -11,16 +11,11 @@ use reqwest::{Certificate, Proxy};
 use serde::Deserialize;
 use serde_json::Value;
 
-const REGISTER_KEY_URL: &str =
-    "https://api5-normal-sinfonlinec.fqnovel.com/reading/crypt/registerkey";
-const BATCH_FULL_ENDPOINT: &str =
-    "https://api5-normal-sinfonlinec.fqnovel.com/reading/reader/batch_full/v?";
-const BATCH_REQUEST_ENDPOINT: &str =
-    "https://api5-normal-sinfonlinec.fqnovel.com/reading/reader/batch_full/v?chapter_id=";
 const DEFAULT_USER_AGENT: &str = "python-requests/2.31.0";
 
 #[derive(Deserialize)]
 struct RegisterKeyRequest {
+    url: String,
     install_id: String,
     aid: String,
     body: Value,
@@ -30,18 +25,23 @@ struct RegisterKeyRequest {
 
 #[derive(Deserialize)]
 struct BatchFullRequest {
+    base_url: String,
     query: String,
     headers: HashMap<String, String>,
 }
 
 #[derive(Deserialize)]
 struct BatchRequestPayload {
+    base_url: String,
     chapter_ids: Vec<String>,
 }
 
 pub fn handle_register_key(payload: &[u8]) -> Result<Value, String> {
     let request: RegisterKeyRequest =
         serde_json::from_slice(payload).map_err(|err| err.to_string())?;
+    if request.url.is_empty() {
+        return Err("register key url missing".to_string());
+    }
     let client = build_client(request.user_agent.as_deref()).map_err(|err| err.to_string())?;
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -51,7 +51,7 @@ pub fn handle_register_key(payload: &[u8]) -> Result<Value, String> {
     );
 
     let response = client
-        .post(REGISTER_KEY_URL)
+        .post(&request.url)
         .headers(headers)
         .query(&[("aid", request.aid.as_str())])
         .json(&request.body)
@@ -67,9 +67,12 @@ pub fn handle_register_key(payload: &[u8]) -> Result<Value, String> {
 pub fn handle_batch_full(payload: &[u8]) -> Result<Value, String> {
     let request: BatchFullRequest =
         serde_json::from_slice(payload).map_err(|err| err.to_string())?;
+    if request.base_url.is_empty() {
+        return Err("batch full url missing".to_string());
+    }
     let client = build_client(None).map_err(|err| err.to_string())?;
     let headers = header_map_from_pairs(request.headers)?;
-    let url = format!("{}{}", BATCH_FULL_ENDPOINT, request.query);
+    let url = format!("{}{}", request.base_url, request.query);
     let response = client
         .get(url)
         .headers(headers)
@@ -88,10 +91,13 @@ pub fn handle_batch_request(payload: &[u8]) -> Result<Value, String> {
     if request.chapter_ids.is_empty() {
         return Ok(Value::Array(Vec::new()));
     }
+    if request.base_url.is_empty() {
+        return Err("batch request url missing".to_string());
+    }
     let client = build_client(None).map_err(|err| err.to_string())?;
     let mut results = Vec::with_capacity(request.chapter_ids.len());
     for chapter_id in request.chapter_ids {
-        let url = format!("{}{}", BATCH_REQUEST_ENDPOINT, chapter_id);
+        let url = format!("{}{}", request.base_url, chapter_id);
         let text = client
             .get(&url)
             .send()

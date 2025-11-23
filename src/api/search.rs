@@ -6,11 +6,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 const AID_DEFAULT: &str = "1967";
-const SEARCH_API: &str =
-    "https://api-lf.fanqiesdk.com/api/novel/channel/homepage/search/search/v1/";
 
 #[derive(Deserialize)]
 struct SearchRequest {
+    url: String,
     query: String,
     #[serde(default = "default_aid")]
     aid: String,
@@ -26,10 +25,13 @@ pub fn handle_search_books(payload: &[u8]) -> Result<Value, String> {
     if req.query.trim().is_empty() {
         return Ok(Value::Null);
     }
+    if req.url.trim().is_empty() {
+        return Err("search url missing".to_string());
+    }
 
     let client = build_client().map_err(|e| e.to_string())?;
     let response = client
-        .get(SEARCH_API)
+        .get(&req.url)
         .query(&[
             ("offset", "0"),
             ("aid", req.aid.as_str()),

@@ -7,8 +7,6 @@ use reqwest::header::{ACCEPT, CONNECTION, CONTENT_TYPE, USER_AGENT};
 use serde::Deserialize;
 use serde_json::Value;
 
-const DEVICE_REGISTER_URL: &str = "https://log.snssdk.com/service/2/device_register/?tt_data=a";
-const ACTIVATE_URL: &str = "https://log.snssdk.com/service/2/app_alert_check/";
 const CONTENT_TYPE_VALUE: &str = "application/octet-stream;tt-data=a";
 const ACCEPT_VALUE: &str = "application/json, */*";
 const CONNECTION_CLOSE: &str = "close";
@@ -17,6 +15,7 @@ const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
 
 #[derive(Deserialize)]
 struct RegisterRequest {
+    url: String,
     body_b64: String,
     #[serde(default)]
     user_agent: Option<String>,
@@ -24,6 +23,7 @@ struct RegisterRequest {
 
 #[derive(Deserialize)]
 struct ActivateRequest {
+    url: String,
     tt_info: String,
     #[serde(default = "default_aid")]
     aid: String,
@@ -38,12 +38,15 @@ fn default_aid() -> String {
 pub fn handle_register(payload: &[u8]) -> Result<Value, String> {
     let request: RegisterRequest =
         serde_json::from_slice(payload).map_err(|err| err.to_string())?;
+    if request.url.is_empty() {
+        return Err("device register url missing".to_string());
+    }
     let body = BASE64_STD
         .decode(request.body_b64)
         .map_err(|err| err.to_string())?;
     let client = build_client().map_err(|err| err.to_string())?;
     let response = client
-        .post(DEVICE_REGISTER_URL)
+        .post(&request.url)
         .header(
             USER_AGENT,
             request.user_agent.as_deref().unwrap_or(DEFAULT_USER_AGENT),
@@ -67,9 +70,12 @@ pub fn handle_activate(payload: &[u8]) -> Result<Value, String> {
     if request.tt_info.is_empty() {
         return Ok(Value::Null);
     }
+    if request.url.is_empty() {
+        return Err("activate url missing".to_string());
+    }
     let client = build_client().map_err(|err| err.to_string())?;
     let response = client
-        .get(ACTIVATE_URL)
+        .get(&request.url)
         .header(
             USER_AGENT,
             request.user_agent.as_deref().unwrap_or(DEFAULT_USER_AGENT),

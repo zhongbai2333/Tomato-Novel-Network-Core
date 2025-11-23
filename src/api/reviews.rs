@@ -6,13 +6,10 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 const AID_DEFAULT: &str = "1967";
-const COMMENT_STATS_API: &str =
-    "https://api5-normal-sinfonlinea.fqnovel.com/novel/commentapi/idea/list";
-const COMMENT_LIST_API: &str =
-    "https://api5-normal-sinfonlinea.fqnovel.com/novel/commentapi/comment/list";
 
 #[derive(Deserialize)]
 struct CommentStatsRequest {
+    base_url: String,
     chapter_id: String,
     item_version: String,
     #[serde(default = "default_aid")]
@@ -22,6 +19,7 @@ struct CommentStatsRequest {
 
 #[derive(Deserialize)]
 struct CommentListRequest {
+    base_url: String,
     chapter_id: String,
     #[serde(default = "default_aid")]
     aid: String,
@@ -41,8 +39,11 @@ fn default_aid() -> String {
 pub fn handle_comment_stats(payload: &[u8]) -> Result<Value, String> {
     let request: CommentStatsRequest =
         serde_json::from_slice(payload).map_err(|err| err.to_string())?;
+    if request.base_url.is_empty() {
+        return Err("comment stats url missing".to_string());
+    }
     let client = build_client().map_err(|err| err.to_string())?;
-    let url = format!("{}/{}/v1", COMMENT_STATS_API, request.chapter_id);
+    let url = format!("{}/{}/v1", request.base_url, request.chapter_id);
     let body = json!({ "item_version": request.item_version });
     let response = client
         .post(url)
@@ -63,8 +64,11 @@ pub fn handle_comment_stats(payload: &[u8]) -> Result<Value, String> {
 pub fn handle_comment_list(payload: &[u8]) -> Result<Value, String> {
     let request: CommentListRequest =
         serde_json::from_slice(payload).map_err(|err| err.to_string())?;
+    if request.base_url.is_empty() {
+        return Err("comment list url missing".to_string());
+    }
     let client = build_client().map_err(|err| err.to_string())?;
-    let url = format!("{}/{}/v1", COMMENT_LIST_API, request.chapter_id);
+    let url = format!("{}/{}/v1", request.base_url, request.chapter_id);
     let response = client
         .post(url)
         .query(&[
