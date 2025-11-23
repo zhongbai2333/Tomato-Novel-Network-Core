@@ -30,7 +30,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -43,11 +43,8 @@ jobs:
       - name: Test (default features)
         run: cargo test --all-targets
 
-      - name: Test (full_api feature)
-        run: cargo test --all-targets --features full_api
-
   build-matrix:
-    name: Build ${{ matrix.variant.name }} (${{ matrix.target.name }})
+    name: Build ${{ matrix.target.name }}
     runs-on: ${{ matrix.target.runner }}
     needs: lint-and-test
     strategy:
@@ -68,15 +65,6 @@ jobs:
             runner:
               - macos-latest
             artifact_suffix: macos-arm64
-        variant:
-          - name: release
-            artifact: minimal
-            args: "--lib"
-            features: ""
-          - name: full-api
-            artifact: full
-            args: "--lib --bins"
-            features: "full_api"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -91,7 +79,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ matrix.target.artifact_suffix }}-${{ matrix.variant.artifact }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ matrix.target.artifact_suffix }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-${{ matrix.target.artifact_suffix }}-
             ${{ runner.os }}-cargo-
@@ -100,16 +88,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -n "${{ matrix.variant.features }}" ]; then
-            cargo build --release ${{ matrix.variant.args }} --features ${{ matrix.variant.features }}
-          else
-            cargo build --release ${{ matrix.variant.args }}
-          fi
+          cargo build --release --lib
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tomato-${{ matrix.variant.artifact }}-${{ matrix.target.artifact_suffix }}
+          name: tomato-core-${{ matrix.target.artifact_suffix }}
           path: |
             target/release/*.rlib
             target/release/*.so
