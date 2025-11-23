@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: rustfmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test (default features)
+        run: cargo test --all-targets
+
+      - name: Test (full_api feature)
+        run: cargo test --all-targets --features full_api
+
+  build-matrix:
+    name: Build ${{ matrix.variant.name }} (${{ matrix.target.name }})
+    runs-on: ${{ matrix.target.runner }}
+    needs: lint-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: ubuntu-x64
+            runner: ubuntu-latest
+            artifact_suffix: ubuntu-x64
+          - name: windows-x64
+            runner: windows-latest
+            artifact_suffix: windows-x64
+          - name: macos-amd64
+            runner:
+              - macos-13
+            artifact_suffix: macos-amd64
+          - name: macos-arm64
+            runner:
+              - macos-latest
+            artifact_suffix: macos-arm64
+        variant:
+          - name: release
+            artifact: minimal
+            args: "--lib"
+            features: ""
+          - name: full-api
+            artifact: full
+            args: "--lib --bins"
+            features: "full_api"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ matrix.target.artifact_suffix }}-${{ matrix.variant.artifact }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target.artifact_suffix }}-
+            ${{ runner.os }}-cargo-
+
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${{ matrix.variant.features }}" ]; then
+            cargo build --release ${{ matrix.variant.args }} --features ${{ matrix.variant.features }}
+          else
+            cargo build --release ${{ matrix.variant.args }}
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tomato-${{ matrix.variant.artifact }}-${{ matrix.target.artifact_suffix }}
+          path: |
+            target/release/*.rlib
+            target/release/*.so
+            target/release/*.dll
+            target/release/*.dylib
+            target/release/*fetch_contents*
+          if-no-files-found: ignore
