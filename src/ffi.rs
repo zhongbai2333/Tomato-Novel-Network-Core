@@ -132,6 +132,11 @@ fn into_buffer(data: Vec<u8>) -> FfiBuffer {
     FfiBuffer { ptr, len }
 }
 
+/// Creates an HTTP client handle from a JSON encoded configuration block.
+///
+/// # Safety
+/// The caller must ensure `ptr` points to `len` bytes of readable memory containing valid UTF-8
+/// JSON for the configuration. The memory must remain accessible for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tn_core_create_client(ptr: *const u8, len: usize) -> FfiBuffer {
     match create_client(ptr, len) {
@@ -140,6 +145,11 @@ pub unsafe extern "C" fn tn_core_create_client(ptr: *const u8, len: usize) -> Ff
     }
 }
 
+/// Executes a request using an existing client and returns the response payload.
+///
+/// # Safety
+/// The caller must guarantee that `ptr` references `len` readable bytes containing valid UTF-8
+/// JSON describing the request and that the provided `handle` was obtained from this API.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tn_core_execute_request(
     handle: u64,
@@ -152,11 +162,21 @@ pub unsafe extern "C" fn tn_core_execute_request(
     }
 }
 
+/// Drops a previously created client associated with `handle`.
+///
+/// # Safety
+/// The caller must ensure the `handle` was returned by `tn_core_create_client` and is not used
+/// again after destruction.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tn_core_destroy_client(handle: u64) {
     REGISTRY.remove(handle);
 }
 
+/// Releases an FFI buffer that was allocated by this crate and returned to the caller.
+///
+/// # Safety
+/// The caller must only pass buffers previously obtained from these FFI functions and must not use
+/// the buffer after freeing it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tn_core_free_buffer(buffer: FfiBuffer) {
     if !buffer.ptr.is_null() {
@@ -166,6 +186,11 @@ pub unsafe extern "C" fn tn_core_free_buffer(buffer: FfiBuffer) {
     }
 }
 
+/// Invokes a generic API operation and returns the serialized response.
+///
+/// # Safety
+/// The caller must ensure both pointer/length pairs reference readable memory for the lifetime of
+/// the call and contain valid UTF-8 for the operation name and binary payload for the request.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tn_core_call(
     op_ptr: *const u8,
