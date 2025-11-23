@@ -896,10 +896,14 @@ dependencies = [
 name = "tomato-novel-network-core"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "bytes",
  "http",
+ "once_cell",
  "reqwest",
  "serde",
+ "serde_json",
+ "serde_urlencoded",
 ]
 
 [[package]]

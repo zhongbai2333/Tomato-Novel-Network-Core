@@ -3,13 +3,13 @@ use std::fmt;
 use std::time::Duration;
 
 use http::Error as HttpError;
+use reqwest::blocking::Body as ReqwestBody;
 use reqwest::blocking::{Client as ReqwestClient, ClientBuilder as ReqwestClientBuilder};
 use reqwest::blocking::{RequestBuilder as ReqwestRequestBuilder, Response as ReqwestResponse};
-use reqwest::blocking::Body as ReqwestBody;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{IntoUrl, Method, Url};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 pub type NetworkError = reqwest::Error;
 pub type Bytes = bytes::Bytes;
@@ -174,6 +174,10 @@ impl From<ReqwestResponse> for HttpResponse {
 }
 
 impl HttpResponse {
+    pub fn status(&self) -> reqwest::StatusCode {
+        self.inner.status()
+    }
+
     pub fn json<T: DeserializeOwned>(self) -> Result<T, NetworkError> {
         self.inner.json()
     }
