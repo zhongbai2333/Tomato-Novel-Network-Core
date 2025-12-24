@@ -46,8 +46,8 @@ impl ClientRegistry {
 
 #[repr(C)]
 pub struct FfiBuffer {
-    ptr: *mut u8,
-    len: usize,
+    pub ptr: *mut u8,
+    pub len: usize,
 }
 
 #[derive(Deserialize)]

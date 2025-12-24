@@ -1,4 +1,5 @@
 mod iid;
+mod directory;
 mod media;
 mod reviews;
 mod search;
@@ -8,6 +9,7 @@ mod version;
 use serde_json::Value;
 
 use crate::api::iid::{handle_activate, handle_register};
+use crate::api::directory::handle_directory_detail;
 use crate::api::media::handle_media_fetch;
 use crate::api::reviews::{handle_comment_list, handle_comment_stats};
 use crate::api::search::handle_search_books;
@@ -18,6 +20,7 @@ pub fn handle_call(op: &str, payload: &[u8]) -> Result<Value, String> {
     match op {
         "iid_register" => handle_register(payload),
         "iid_activate" => handle_activate(payload),
+        "book_directory_detail" => handle_directory_detail(payload),
         "review_comment_stats" => handle_comment_stats(payload),
         "review_comment_list" => handle_comment_list(payload),
         "media_fetch" => handle_media_fetch(payload),
